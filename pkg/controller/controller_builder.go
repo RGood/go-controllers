@@ -9,6 +9,7 @@ import (
 type ControllerBuilder struct {
 	controllerFuncs map[string]func(*http.Request) (int, interface{})
 	defaultFunc     func(*http.Request) (int, interface{})
+	beforeFunc      func(*http.Request, func(*http.Request) (int, interface{})) (int, interface{})
 	headers         map[string]string
 }
 
@@ -21,6 +22,11 @@ func NewControllerbuilder() *ControllerBuilder {
 			}
 		},
 	}
+}
+
+func (cb *ControllerBuilder) Before(beforeFunc func(*http.Request, func(*http.Request) (int, interface{})) (int, interface{})) *ControllerBuilder {
+	cb.beforeFunc = beforeFunc
+	return cb
 }
 
 func (cb *ControllerBuilder) Handle(method string, f func(*http.Request) (int, interface{})) *ControllerBuilder {
@@ -76,8 +82,13 @@ func (cb *ControllerBuilder) Create() func(http.ResponseWriter, *http.Request) {
 
 		controllerFunc, ok := cb.controllerFuncs[req.Method]
 		if ok {
-			code, res := controllerFunc(req)
-			writeResponse(w, code, res)
+			if cb.beforeFunc != nil {
+				code, res := cb.beforeFunc(req, controllerFunc)
+				writeResponse(w, code, res)
+			} else {
+				code, res := controllerFunc(req)
+				writeResponse(w, code, res)
+			}
 		} else {
 			code, res := cb.defaultFunc(req)
 			writeResponse(w, code, res)
