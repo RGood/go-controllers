@@ -7,36 +7,28 @@ import (
 )
 
 type ControllerBuilder struct {
-	controllerFuncs map[string]func(*http.Request) Response
-	defaultFunc     func(*http.Request) Response
+	controllerFuncs map[string]func(*http.Request) (int, interface{})
+	defaultFunc     func(*http.Request) (int, interface{})
 	headers         map[string]string
-}
-
-type Response struct {
-	code int
-	body interface{}
 }
 
 func NewControllerbuilder() *ControllerBuilder {
 	return &ControllerBuilder{
-		controllerFuncs: map[string]func(*http.Request) Response{},
-		defaultFunc: func(r *http.Request) Response {
-			return Response{
-				code: 404,
-				body: struct{ Error string }{
-					Error: "Method not implemented",
-				},
+		controllerFuncs: map[string]func(*http.Request) (int, interface{}){},
+		defaultFunc: func(r *http.Request) (int, interface{}) {
+			return 404, struct{ Error string }{
+				Error: "Method not implemented",
 			}
 		},
 	}
 }
 
-func (cb *ControllerBuilder) Handle(method string, f func(*http.Request) Response) *ControllerBuilder {
+func (cb *ControllerBuilder) Handle(method string, f func(*http.Request) (int, interface{})) *ControllerBuilder {
 	cb.controllerFuncs[method] = f
 	return cb
 }
 
-func (cb *ControllerBuilder) Default(f func(*http.Request) Response) *ControllerBuilder {
+func (cb *ControllerBuilder) Default(f func(*http.Request) (int, interface{})) *ControllerBuilder {
 	cb.defaultFunc = f
 	return cb
 }
@@ -56,16 +48,15 @@ func (cb *ControllerBuilder) getOptions() []string {
 	return methods
 }
 
-func writeResponse(w http.ResponseWriter, res Response) {
-	b, err := json.Marshal(res.body)
+func writeResponse(w http.ResponseWriter, code int, body interface{}) {
+	b, err := json.Marshal(body)
 	if err != nil {
 		w.WriteHeader(500)
 		w.Write([]byte("Error parsing response body"))
 	} else {
-		w.WriteHeader(res.code)
+		w.WriteHeader(code)
 		w.Write(b)
 	}
-
 }
 
 func (cb *ControllerBuilder) Create() func(http.ResponseWriter, *http.Request) {
@@ -85,9 +76,11 @@ func (cb *ControllerBuilder) Create() func(http.ResponseWriter, *http.Request) {
 
 		controllerFunc, ok := cb.controllerFuncs[req.Method]
 		if ok {
-			writeResponse(w, controllerFunc(req))
+			code, res := controllerFunc(req)
+			writeResponse(w, code, res)
 		} else {
-			writeResponse(w, cb.defaultFunc(req))
+			code, res := cb.defaultFunc(req)
+			writeResponse(w, code, res)
 		}
 	}
 }
