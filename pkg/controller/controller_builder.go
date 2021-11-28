@@ -13,7 +13,7 @@ type ControllerBuilder struct {
 	headers         map[string]string
 }
 
-func NewControllerbuilder() *ControllerBuilder {
+func NewControllerBuilder() *ControllerBuilder {
 	return &ControllerBuilder{
 		controllerFuncs: map[string]func(*http.Request) (int, interface{}){},
 		defaultFunc: func(r *http.Request) (int, interface{}) {

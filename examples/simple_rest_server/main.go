@@ -14,7 +14,7 @@ func main() {
 
 	http.HandleFunc(
 		"/",
-		controller.NewControllerbuilder().
+		controller.NewControllerBuilder().
 			Before(func(req *http.Request, next func(req *http.Request) (int, interface{})) (int, interface{}) {
 				println("In Before Function: " + req.Method + " " + req.URL.String())
 				return next(req)
