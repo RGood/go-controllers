@@ -55,13 +55,18 @@ func (cb *ControllerBuilder) getOptions() []string {
 }
 
 func writeResponse(w http.ResponseWriter, code int, body interface{}) {
-	b, err := json.Marshal(body)
-	if err != nil {
-		w.WriteHeader(500)
-		w.Write([]byte("Error parsing response body"))
+	f, ok := body.(func(int, http.ResponseWriter))
+	if ok {
+		f(code, w)
 	} else {
-		w.WriteHeader(code)
-		w.Write(b)
+		b, err := json.Marshal(body)
+		if err != nil {
+			w.WriteHeader(500)
+			w.Write([]byte("Error parsing response body"))
+		} else {
+			w.WriteHeader(code)
+			w.Write(b)
+		}
 	}
 }
 
